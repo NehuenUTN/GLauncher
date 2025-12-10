@@ -79,7 +79,7 @@ public class FileManager {
                         int len;
                         while ((len = zis.read(buffer)) > 0) {
                             fos.write(buffer, 0, len);
-                            // Aquí podrías sumar bytes y calcular porcentaje real si pasas el tamaño total descomprimido.
+                            // Aca se podria sumar bytes y calcular porcentaje real si se pasa el tamaño total descomprimido.
                         }
                     }
                 }

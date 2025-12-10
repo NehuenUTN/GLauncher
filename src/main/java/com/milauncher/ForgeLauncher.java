@@ -12,15 +12,14 @@ public class ForgeLauncher {
             Path root = FileManager.getMinecraftDir();
 
             // --- DETECCIÓN DE JAVA ---
-            // Buscamos si hay una carpeta "runtime" dentro de nuestro directorio
-            Path bundledJava = root.resolve("runtime").resolve("jdk-21.0.8").resolve("bin").resolve("java.exe");
+            String javaHome = System.getProperty("java.home");
+            Path javaBin = Paths.get(javaHome, "bin", "java.exe");
+
             String javaCommand = "java"; // Por defecto usa el del sistema
 
-            if (Files.exists(bundledJava)) {
-                System.out.println("Usando Java integrado: " + bundledJava);
-                javaCommand = bundledJava.toAbsolutePath().toString();
-            } else {
-                System.out.println("Usando Java del sistema (puede fallar si no es v17+)");
+            if (Files.exists(javaBin)) {
+                System.out.println("Usando Java del sistema/runtime actual: " + javaBin);
+                javaCommand = javaBin.toAbsolutePath().toString();
             }
 
             String vanillaVersion = "1.20.1";
