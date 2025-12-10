@@ -1,0 +1,35 @@
+/* style.css */
+
+/* .root se refiere a la ventana principal */
+.root {
+    /* -fx-background-color: #2b2b2b;  Fondo Gris Oscuro */
+    -fx-font-family: 'Segoe UI', 'Arial', sans-serif;
+}
+
+/* Estilo base para todos los textos */
+.label {
+    -fx-text-fill: white;
+    -fx-font-size: 14px;
+}
+
+/* Estilo base para todos los botones */
+.button {
+    -fx-cursor: hand; /* Pone la manito cuando pasas el mouse por encima */
+    -fx-font-weight: bold;
+}
+
+/* Efecto visual cuando pasas el mouse sobre un botón */
+.button:hover {
+    -fx-opacity: 0.8;
+}
+
+/* Barra de progreso */
+.progress-bar .track {
+    -fx-background-color: #404040;
+    -fx-background-radius: 5px;
+}
+
+.progress-bar .bar {
+    -fx-background-color: #2ecc71; /* Color verde de carga */
+    -fx-background-radius: 5px;
+}
