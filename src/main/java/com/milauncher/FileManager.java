@@ -24,34 +24,34 @@ public class FileManager {
 
                 Path versionDir = dir.resolve("versions").resolve("1.20.1");
 
-                // Verificar si falta la version. En un futuro chequeando version.txt
+                // Lógica de instalación
                 if (!Files.exists(versionDir)) {
                     System.out.println("Instalando archivos...");
 
-                    // Como vamos a descomprimir, borramos lo viejo para limpiar.
+                    // Borramos la carpeta mods vieja para evitar conflictos
                     deleteFolder(dir.resolve("mods"));
 
+                    // Buscamos el ZIP al lado del ejecutable (user.dir)
                     Path localZip = Paths.get(System.getProperty("user.dir"), "minecraft_package.zip");
+
+                    // Fallback por si estamos en modo desarrollo (IDE)
                     if (!Files.exists(localZip)) {
                         localZip = Paths.get("minecraft_package.zip");
                     }
+
                     if (Files.exists(localZip)) {
-                        long totalSize = Files.size(localZip); // Tamaño aproximado para calcular progreso
+                        long totalSize = Files.size(localZip);
                         unzip(localZip, dir, totalSize, progressUpdater);
                     } else {
-                        System.out.println("No se encontró el ZIP.");
+                        System.out.println("ERROR CRÍTICO: No se encontró minecraft_package.zip en: " + localZip);
                     }
-                }
-                else {
-                    System.out.println("Archivos verificados correctamente.");
-                    progressUpdater.accept(1.0); // Barra llena instantánea si ya está instalado
+                } else {
+                    System.out.println("Archivos ya instalados. Verificación rápida.");
+                    updateProgressSafe(progressUpdater, 1.0);
                 }
 
-                // Al terminar, avisamos a la UI (siempre en el hilo de JavaFX)
-                Platform.runLater(() -> {
-                    progressUpdater.accept(1.0); // 100%
-                    onFinished.run();
-                });
+                // Al terminar, avisamos a la UI
+                Platform.runLater(onFinished);
 
             } catch (Exception e) {
                 e.printStackTrace();
@@ -60,38 +60,69 @@ public class FileManager {
     }
 
     private static void unzip(Path zipPath, Path dest, long totalSize, Consumer<Double> progressUpdater) throws IOException {
+        // Usamos un InputStream "monitorizado" para contar los bytes reales que se leen del disco
         try (InputStream fis = Files.newInputStream(zipPath);
-             ZipInputStream zis = new ZipInputStream(new BufferedInputStream(fis))) {
+             BufferedInputStream bis = new BufferedInputStream(fis);
+             // Aquí envolvemos el stream para interceptar la lectura
+             InputStream progressStream = new InputStream() {
+                 long bytesRead = 0;
+                 double lastProgress = 0;
+
+                 @Override
+                 public int read() throws IOException {
+                     int b = bis.read();
+                     if (b != -1) update(1);
+                     return b;
+                 }
+
+                 @Override
+                 public int read(byte[] b, int off, int len) throws IOException {
+                     int n = bis.read(b, off, len);
+                     if (n > 0) update(n);
+                     return n;
+                 }
+
+                 private void update(int n) {
+                     bytesRead += n;
+                     double currentProgress = (double) bytesRead / totalSize;
+
+                     // Optimizacion: Solo actualizamos la UI si avanzó al menos un 1% o terminamos
+                     // Esto evita congelar la interfaz con millones de llamadas
+                     if (currentProgress - lastProgress >= 0.01 || currentProgress >= 1.0) {
+                         lastProgress = currentProgress;
+                         updateProgressSafe(progressUpdater, currentProgress);
+                     }
+                 }
+             };
+             ZipInputStream zis = new ZipInputStream(progressStream)) {
 
             ZipEntry entry;
-            long bytesRead = 0;
-
             while ((entry = zis.getNextEntry()) != null) {
                 Path newPath = dest.resolve(entry.getName());
 
-                // Actualizar progreso aproximado
                 if (entry.isDirectory()) {
                     Files.createDirectories(newPath);
                 } else {
                     Files.createDirectories(newPath.getParent());
                     try (OutputStream fos = Files.newOutputStream(newPath)) {
-                        byte[] buffer = new byte[4096];
+                        byte[] buffer = new byte[8192]; // Buffer de 8KB para copia rápida
                         int len;
                         while ((len = zis.read(buffer)) > 0) {
                             fos.write(buffer, 0, len);
-                            // Aca se podria sumar bytes y calcular porcentaje real si se pasa el tamaño total descomprimido.
                         }
                     }
                 }
-
-                // Cálculo de progreso "fake" pero visual para el usuario (avanza un poquito por archivo)
-                // Lo ideal es contar bytes leídos del FileInputStream original, pero requiere estructura compleja.
-                final double currentProgress = Math.random(); // Placeholder: En UI real implementaremos avance visual indeterminado o por bytes.
+                // Nota: El progreso se actualiza automáticamente gracias al 'progressStream'
+                // mientras el ZipInputStream lee datos.
             }
         }
     }
 
-    // Método para borrar carpetas recursivamente (limpieza de mods)
+    // Método seguro para actualizar la UI desde un hilo secundario
+    private static void updateProgressSafe(Consumer<Double> updater, double value) {
+        Platform.runLater(() -> updater.accept(value));
+    }
+
     private static void deleteFolder(Path path) {
         if (!Files.exists(path)) return;
         try (Stream<Path> walk = Files.walk(path)) {

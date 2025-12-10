@@ -238,7 +238,7 @@ public class Launcher extends Application {
             startButton.setDisable(true);
             progressBar.setVisible(true);
             progressBar.setProgress(ProgressBar.INDETERMINATE_PROGRESS);
-            statusLabel.setText("Verificando archivos y descomprimiendo...");
+            statusLabel.setText("Descargando archivos...");
 
             FileManager.ensureMinecraftFiles(
                     progress -> progressBar.setProgress(progress),
