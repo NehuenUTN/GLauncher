@@ -17,7 +17,7 @@ public class Updater {
 
     // --- CONFIGURACIÓN ---
     private static final String CURRENT_VERSION = "1.0";
-    private static final String VERSION_URL = "";
+    private static final String VERSION_URL = "https://raw.githubusercontent.com/NehuenUTN/GLauncher/refs/heads/main/version.json";
 
     // Ruta temporal para descargar el nuevo instalador
     private static final Path DOWNLOAD_PATH = Paths.get(System.getProperty("java.io.tmpdir"), "RustCraft_Setup_New.exe");
