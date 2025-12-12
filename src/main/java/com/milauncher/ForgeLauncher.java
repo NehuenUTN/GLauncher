@@ -197,7 +197,7 @@ public class ForgeLauncher {
                         .replace("${version_name}", forgeVersionName)
                         .replace("${game_directory}", root.toString())
                         .replace("${assets_root}", root.resolve("assets").toString())
-                        .replace("${assets_index_name}", "1.20")
+                        .replace("${assets_index_name}", "5") // nombre del .json dentro de /assets/indexes
                         .replace("${auth_uuid}", "00000000-0000-0000-0000-000000000000")
                         .replace("${auth_access_token}", "0")
                         .replace("${clientid}", "0")

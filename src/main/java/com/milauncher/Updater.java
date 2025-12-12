@@ -20,7 +20,7 @@ import java.nio.file.Paths;
 public class Updater {
 
     // --- CONFIGURACIÓN ---
-    private static final String CURRENT_VERSION = "1.1";
+    private static final String CURRENT_VERSION = "1.1.2";
     private static final String VERSION_URL = "https://raw.githubusercontent.com/NehuenUTN/GLauncher/refs/heads/main/version.json";
 
     // Ruta temporal para descargar el nuevo instalador
@@ -72,8 +72,8 @@ public class Updater {
     private static void showConfirmDialog(String latestVersion, String downloadUrl) {
         Alert alert = new Alert(AlertType.CONFIRMATION);
         alert.setTitle("Actualización Disponible");
-        alert.setHeaderText("¡Nueva Versión " + latestVersion + "disponible!");
-        alert.setContentText("Es necesario actualizar el launcher para continuar.\nLa descarga puede tomar unos minutos. ¿Deseas descargarla ahora?");
+        alert.setHeaderText("¡Nueva versión " + latestVersion + " disponible!");
+        alert.setContentText("Es necesario actualizar el launcher para continuar.\nLa descarga puede tomar unos minutos.");
 
         ButtonType btnUpdate = new ButtonType("Actualizar");
         ButtonType btnExit = new ButtonType("Salir");
