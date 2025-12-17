@@ -11,6 +11,8 @@ import java.util.zip.ZipInputStream;
 
 public class FileManager {
 
+    private static final String PACK_VERSION = "1.1.1";
+
     public static Path getMinecraftDir() {
         return Paths.get(System.getenv("APPDATA"), ".GermFlogLauncher");
     }
@@ -22,35 +24,46 @@ public class FileManager {
                 Path dir = getMinecraftDir();
                 if (!Files.exists(dir)) Files.createDirectories(dir);
 
-                Path versionDir = dir.resolve("versions").resolve("1.20.1");
+                Path versionFile = dir.resolve("pack_version.txt");
+                boolean needUpdate = true;
+
+                if (Files.exists(versionFile)) {
+                    String installedVersion = Files.readString(versionFile).trim();
+                    if (installedVersion.equals(PACK_VERSION)) {
+                        needUpdate = false;
+                    }
+                }
 
                 // Lógica de instalación
-                if (!Files.exists(versionDir)) {
-                    System.out.println("Instalando archivos...");
+                if (needUpdate) {
+                    System.out.println("Detectada nueva versión del paquete (" + PACK_VERSION + "). Actualizando archivos...");
 
-                    // Borramos la carpeta mods vieja para evitar conflictos
+                    // No borramos 'config' para intentar preservar configuraciones,
+                    // pero borramos 'mods' para evitar crasheos.
                     deleteFolder(dir.resolve("mods"));
 
-                    // Buscamos el ZIP al lado del ejecutable (user.dir)
+                    // Buscar el ZIP
                     Path localZip = Paths.get(System.getProperty("user.dir"), "minecraft_package.zip");
-
-                    // Fallback por si estamos en modo desarrollo (IDE)
                     if (!Files.exists(localZip)) {
                         localZip = Paths.get("minecraft_package.zip");
                     }
 
+                    // Descomprimir
                     if (Files.exists(localZip)) {
                         long totalSize = Files.size(localZip);
                         unzip(localZip, dir, totalSize, progressUpdater);
+
+                        // Marcar como actualizado, escribiendo la nueva version en el archivo
+                        Files.writeString(versionFile, PACK_VERSION);
+                        System.out.println("Actualización a versión " + PACK_VERSION + " completada.");
                     } else {
-                        System.out.println("ERROR CRÍTICO: No se encontró minecraft_package.zip en: " + localZip);
+                        System.out.println("ERROR CRÍTICO: No se encontró minecraft_package.zip");
                     }
                 } else {
-                    System.out.println("Archivos ya instalados. Verificación rápida.");
+                    System.out.println("El paquete está actualizado (" + PACK_VERSION + "). Omitiendo descompresión.");
                     updateProgressSafe(progressUpdater, 1.0);
                 }
 
-                // Al terminar, avisamos a la UI
                 Platform.runLater(onFinished);
 
             } catch (Exception e) {
@@ -99,6 +112,17 @@ public class FileManager {
             ZipEntry entry;
             while ((entry = zis.getNextEntry()) != null) {
                 Path newPath = dest.resolve(entry.getName());
+
+                if (Files.exists(newPath)) {
+                    String fileName = newPath.getFileName().toString();
+                    if (fileName.equals("options.txt") ||
+                            fileName.equals("servers.dat") ||
+                            fileName.equals("optionsof.txt")) { // optionsof.txt es de Optifine
+
+                        System.out.println("Saltando archivo protegido: " + fileName);
+                        continue; // Salta al siguiente archivo del ZIP sin extraer este
+                    }
+                }
 
                 if (entry.isDirectory()) {
                     Files.createDirectories(newPath);

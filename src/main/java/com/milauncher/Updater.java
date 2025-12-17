@@ -20,7 +20,7 @@ import java.nio.file.Paths;
 public class Updater {
 
     // --- CONFIGURACIÓN ---
-    private static final String CURRENT_VERSION = "1.1.2";
+    private static final String CURRENT_VERSION = "1.1.3";
     private static final String VERSION_URL = "https://raw.githubusercontent.com/NehuenUTN/GLauncher/refs/heads/main/version.json";
 
     // Ruta temporal para descargar el nuevo instalador

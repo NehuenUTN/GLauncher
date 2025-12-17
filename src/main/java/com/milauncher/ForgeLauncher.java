@@ -190,10 +190,15 @@ public class ForgeLauncher {
     }
 
     private static void addArgsFromJson(List<String> out, JsonArray arr, Path root, String forgeVersionName) {
+        String username = ConfigManager.getUsername(); // Obtener el usuario real
+        if (username == null || username.trim().isEmpty()) {
+            username = "Player";
+        }
+
         for (JsonElement e : arr) {
             if (e.isJsonPrimitive()) {
                 out.add(e.getAsString()
-                        .replace("${auth_player_name}", "Player")
+                        .replace("${auth_player_name}", username)
                         .replace("${version_name}", forgeVersionName)
                         .replace("${game_directory}", root.toString())
                         .replace("${assets_root}", root.resolve("assets").toString())
