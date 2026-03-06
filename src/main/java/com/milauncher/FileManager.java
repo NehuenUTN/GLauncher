@@ -1,5 +1,10 @@
 package com.milauncher;
 
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import java.io.InputStreamReader;
+import java.net.URL;
+
 import javafx.application.Platform;
 import java.io.*;
 import java.nio.file.*;
@@ -11,56 +16,75 @@ import java.util.zip.ZipInputStream;
 
 public class FileManager {
 
-    private static final String PACK_VERSION = "1.1.1";
+    private static final String VERSION_URL = "https://raw.githubusercontent.com/NehuenUTN/GLauncher/refs/heads/main/version.json";
 
     public static Path getMinecraftDir() {
         return Paths.get(System.getenv("APPDATA"), ".GermFlogLauncher");
     }
 
     // Acepta un 'Consumer' para actualizar la barra de progreso
-    public static void ensureMinecraftFiles(Consumer<Double> progressUpdater, Runnable onFinished) {
+    // Le agregamos un Consumer<String> para poder enviarle textos a la pantalla principal
+    public static void ensureMinecraftFiles(Consumer<Double> progressUpdater, Consumer<String> statusUpdater, Runnable onFinished) {
         new Thread(() -> {
             try {
                 Path dir = getMinecraftDir();
                 if (!Files.exists(dir)) Files.createDirectories(dir);
 
                 Path versionFile = dir.resolve("pack_version.txt");
-                boolean needUpdate = true;
 
+                // 1. PREGUNTARLE A GITHUB CUÁL ES LA ÚLTIMA VERSIÓN
+                statusUpdater.accept("Verificando actualizaciones de mods...");
+                String remoteVersion = "1.0.0"; // Versión por defecto si falla algo
+                String packageUrl = "";
+
+                try (InputStreamReader reader = new InputStreamReader(new URL(VERSION_URL).openStream())) {
+                    JsonObject versionInfo = JsonParser.parseReader(reader).getAsJsonObject();
+                    // Leemos los nuevos campos que vamos a agregar al JSON
+                    if (versionInfo.has("modpack_version") && versionInfo.has("modpack_url")) {
+                        remoteVersion = versionInfo.get("modpack_version").getAsString();
+                        packageUrl = versionInfo.get("modpack_url").getAsString();
+                    }
+                } catch (Exception e) {
+                    System.err.println("No se pudo leer version.json de GitHub: " + e.getMessage());
+                }
+
+                // 2. COMPARAR CON LO QUE TIENE EL JUGADOR INSTALADO
+                boolean needUpdate = true;
                 if (Files.exists(versionFile)) {
                     String installedVersion = Files.readString(versionFile).trim();
-                    if (installedVersion.equals(PACK_VERSION)) {
+                    // Si la versión instalada es igual a la de GitHub, no hacemos nada
+                    if (installedVersion.equals(remoteVersion) || packageUrl.isEmpty()) {
                         needUpdate = false;
                     }
                 }
 
-                // Lógica de instalación
-                if (needUpdate) {
-                    System.out.println("Detectada nueva versión del paquete (" + PACK_VERSION + "). Actualizando archivos...");
+                // 3. DESCARGAR Y EXTRAER SI ES NECESARIO
+                if (needUpdate && !packageUrl.isEmpty()) {
+                    System.out.println("Actualizando mods a la versión remota: " + remoteVersion);
 
-                    // No borramos 'config' para intentar preservar configuraciones,
-                    // pero borramos 'mods' para evitar crasheos.
-                    deleteFolder(dir.resolve("mods"));
+                    statusUpdater.accept("Limpiando mods antiguos...");
+                    deleteFolder(dir.resolve("mods")); // Borramos la carpeta mods vieja
 
-                    // Buscar el ZIP
-                    Path localZip = Paths.get(System.getProperty("user.dir"), "minecraft_package.zip");
-                    if (!Files.exists(localZip)) {
-                        localZip = Paths.get("minecraft_package.zip");
-                    }
+                    Path localZip = dir.resolve("minecraft_package.zip");
+
+                    statusUpdater.accept("Descargando actualización (esto puede tardar)...");
+                    updateProgressSafe(progressUpdater, 0.0);
+                    downloadPackage(packageUrl, localZip, progressUpdater); // (El método de descarga que agregamos antes)
 
                     // Descomprimir
                     if (Files.exists(localZip)) {
+                        statusUpdater.accept("Extrayendo archivos...");
                         long totalSize = Files.size(localZip);
                         unzip(localZip, dir, totalSize, progressUpdater);
 
-                        // Marcar como actualizado, escribiendo la nueva version en el archivo
-                        Files.writeString(versionFile, PACK_VERSION);
-                        System.out.println("Actualización a versión " + PACK_VERSION + " completada.");
-                    } else {
-                        System.out.println("ERROR CRÍTICO: No se encontró minecraft_package.zip");
+                        // Limpieza
+                        Files.deleteIfExists(localZip);
+                        // Guardamos la nueva versión en el archivo de texto del jugador
+                        Files.writeString(versionFile, remoteVersion);
+                        System.out.println("Actualización de mods completada.");
                     }
                 } else {
-                    System.out.println("El paquete está actualizado (" + PACK_VERSION + "). Omitiendo descompresión.");
+                    System.out.println("Los mods están actualizados a la versión: " + remoteVersion);
                     updateProgressSafe(progressUpdater, 1.0);
                 }
 
@@ -68,6 +92,8 @@ public class FileManager {
 
             } catch (Exception e) {
                 e.printStackTrace();
+                // Si hay un error crítico, intentamos lanzar el juego igual con lo que haya
+                Platform.runLater(onFinished);
             }
         }).start();
     }
@@ -155,6 +181,33 @@ public class FileManager {
                     .forEach(File::delete);
         } catch (IOException e) {
             e.printStackTrace();
+        }
+    }
+
+    private static void downloadPackage(String urlString, Path dest, Consumer<Double> progressUpdater) throws IOException {
+        java.net.URL url = new java.net.URL(urlString);
+        java.net.HttpURLConnection conn = (java.net.HttpURLConnection) url.openConnection();
+        long fileSize = conn.getContentLengthLong();
+
+        try (InputStream in = conn.getInputStream();
+             OutputStream out = Files.newOutputStream(dest)) {
+            byte[] buffer = new byte[8192];
+            int bytesRead;
+            long totalRead = 0;
+            double lastProgress = 0;
+
+            while ((bytesRead = in.read(buffer)) != -1) {
+                out.write(buffer, 0, bytesRead);
+                totalRead += bytesRead;
+                if (fileSize > 0) {
+                    double progress = (double) totalRead / fileSize;
+                    // Actualiza la barra cada 1% para no saturar la UI
+                    if (progress - lastProgress >= 0.01 || progress >= 1.0) {
+                        lastProgress = progress;
+                        updateProgressSafe(progressUpdater, progress);
+                    }
+                }
+            }
         }
     }
 }

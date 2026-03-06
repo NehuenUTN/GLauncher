@@ -54,4 +54,16 @@ public class ConfigManager {
         props.setProperty("ram", ram);
         save();
     }
+
+    public static String getMcVersion() {
+        return props.getProperty("mcVersion", "1.20.1");
+    }
+
+    public static String getForgeVersion() {
+        return props.getProperty("forgeVersion", "1.20.1-forge-47.4.10");
+    }
+
+    public static String getPackageUrl() {
+        return props.getProperty("packageUrl", "");
+    }
 }

@@ -13,7 +13,10 @@ public class ForgeLauncher {
 
             // --- DETECCIÓN DE JAVA ---
             String javaHome = System.getProperty("java.home");
-            Path javaBin = Paths.get(javaHome, "bin", "java.exe");
+            String os = System.getProperty("os.name").toLowerCase();
+            // Si no es Windows, busca "java" en lugar de "java.exe"
+            String javaExe = os.contains("win") ? "java.exe" : "java";
+            Path javaBin = Paths.get(javaHome, "bin", javaExe);
 
             String javaCommand = "java"; // Por defecto usa el del sistema
 
@@ -22,8 +25,8 @@ public class ForgeLauncher {
                 javaCommand = javaBin.toAbsolutePath().toString();
             }
 
-            String vanillaVersion = "1.20.1";
-            String forgeVersion = "1.20.1-forge-47.4.10";
+            String vanillaVersion = ConfigManager.getMcVersion();
+            String forgeVersion = ConfigManager.getForgeVersion();
 
             System.out.println("[Launcher] Root Minecraft dir = " + root);
 

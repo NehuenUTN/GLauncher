@@ -238,10 +238,11 @@ public class Launcher extends Application {
             startButton.setDisable(true);
             progressBar.setVisible(true);
             progressBar.setProgress(ProgressBar.INDETERMINATE_PROGRESS);
-            statusLabel.setText("Descargando archivos...");
 
             FileManager.ensureMinecraftFiles(
                     progress -> progressBar.setProgress(progress),
+                    // Actualiza el texto de la pantalla en tiempo real
+                    status -> javafx.application.Platform.runLater(() -> statusLabel.setText(status)),
                     () -> {
                         statusLabel.setText("Iniciando Minecraft...");
                         progressBar.setProgress(1.0);
